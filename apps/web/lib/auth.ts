@@ -17,27 +17,28 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     },
   },
-  user: {
-    async beforeCreate(user) {
-      // Enforce allowed email domains
-      const setting = await prisma.setting.findUnique({
-        where: { key: "allowed_domains" },
-      });
-      if (setting?.value) {
-        const domains = setting.value
-          .split(",")
-          .map((d) => d.trim().toLowerCase())
-          .filter(Boolean);
-        if (domains.length > 0) {
-          const emailDomain = user.email.split("@")[1]?.toLowerCase();
-          if (!emailDomain || !domains.includes(emailDomain)) {
-            throw new Error(
-              `Email domain not allowed. Permitted: ${domains.join(", ")}`
-            );
+  databaseHooks: {
+    user: {
+      create: {
+        async before(user) {
+          // Enforce allowed email domains
+          const setting = await prisma.setting.findUnique({
+            where: { key: "allowed_domains" },
+          });
+          if (setting?.value) {
+            const domains = setting.value
+              .split(",")
+              .map((d: string) => d.trim().toLowerCase())
+              .filter(Boolean);
+            if (domains.length > 0) {
+              const emailDomain = user.email.split("@")[1]?.toLowerCase();
+              if (!emailDomain || !domains.includes(emailDomain)) {
+                return false; // Block creation
+              }
+            }
           }
-        }
-      }
-      return user;
+        },
+      },
     },
   },
   plugins: [

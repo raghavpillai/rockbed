@@ -26,7 +26,7 @@ async function handleRequest(request: Request) {
 
   const url = new URL(request.url);
   const path = url.pathname.replace("/rpc/", "");
-  const isAdmin = session.user.role === "admin";
+  const isAdmin = (session.user as any).role === "admin";
 
   // Admin-only routes
   if (ADMIN_ONLY_ROUTES.some((p) => path.startsWith(p)) && !isAdmin) {
