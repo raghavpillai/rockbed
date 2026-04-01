@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { RegionProvider } from "@/lib/region-context";
 
 export const metadata: Metadata = {
-  title: "Rockbed",
+  title: "Rockbed | Bedrock Provisioner",
   description: "Provision and manage AWS Bedrock API keys",
 };
 
