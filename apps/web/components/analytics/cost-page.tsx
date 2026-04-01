@@ -7,7 +7,7 @@ import {
   useAnalytics,
   formatNumber,
   formatCurrency,
-  getModelCost,
+  calculateCost,
   monthName,
   CHART_COLORS,
   sanitizeKey,
@@ -78,7 +78,7 @@ export function CostPage() {
   const totalCost = useMemo(() => {
     if (!modelData?.summary.length) return 0;
     return modelData.summary.reduce(
-      (acc, r) => acc + getModelCost(r.groupKey, r.totalIn, r.totalOut),
+      (acc, r) => acc + calculateCost(r.groupKey, r.totalIn, r.totalOut),
       0
     );
   }, [modelData]);
@@ -89,7 +89,7 @@ export function CostPage() {
     return modelData.summary
       .map((r) => ({
         name: r.groupKey,
-        value: getModelCost(r.groupKey, r.totalIn, r.totalOut),
+        value: calculateCost(r.groupKey, r.totalIn, r.totalOut),
       }))
       .filter((d) => d.value > 0)
       .sort((a, b) => b.value - a.value);
@@ -119,7 +119,7 @@ export function CostPage() {
       entry.day = dayKey as any;
       const safe = keyMap.get(row.groupKey)!;
       entry[safe] =
-        (entry[safe] ?? 0) + getModelCost(row.groupKey, row.totalIn, row.totalOut);
+        (entry[safe] ?? 0) + calculateCost(row.groupKey, row.totalIn, row.totalOut);
     }
 
     const config: Record<string, { label: string; color: string }> = {};
@@ -139,7 +139,7 @@ export function CostPage() {
     if (groupBy === "model" && modelData?.summary) {
       return modelData.summary.map((r) => ({
         ...r,
-        cost: getModelCost(r.groupKey, r.totalIn, r.totalOut),
+        cost: calculateCost(r.groupKey, r.totalIn, r.totalOut),
       }));
     }
     // For apiKey/user groupBy, estimate cost using blended rate
@@ -147,7 +147,7 @@ export function CostPage() {
       return data.summary.map((r) => ({
         ...r,
         // Use a blended estimate: ~$5/M in, ~$20/M out (weighted avg)
-        cost: (r.totalIn / 1e6) * 5 + (r.totalOut / 1e6) * 20,
+        cost: calculateCost("blended", r.totalIn, r.totalOut),
       }));
     }
     return [];

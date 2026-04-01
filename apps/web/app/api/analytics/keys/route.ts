@@ -1,37 +1,8 @@
 import { auth } from "@/lib/auth";
+import { runInsightsQuery } from "@/lib/cloudwatch";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import {
-  CloudWatchLogsClient,
-  StartQueryCommand,
-  GetQueryResultsCommand,
-} from "@aws-sdk/client-cloudwatch-logs";
-
-const LOG_GROUP = "/aws/bedrock/invocation-logs";
-
-async function runQuery(cwl: CloudWatchLogsClient, query: string, start: Date, end: Date) {
-  const { queryId } = await cwl.send(
-    new StartQueryCommand({
-      logGroupName: LOG_GROUP,
-      startTime: Math.floor(start.getTime() / 1000),
-      endTime: Math.floor(end.getTime() / 1000),
-      queryString: query,
-    })
-  );
-  for (let i = 0; i < 20; i++) {
-    await new Promise((r) => setTimeout(r, 1000));
-    const res = await cwl.send(new GetQueryResultsCommand({ queryId: queryId! }));
-    if (res.status === "Complete") {
-      return (res.results ?? []).map((row) => {
-        const obj: Record<string, string> = {};
-        for (const f of row) if (f.field && f.value) obj[f.field] = f.value;
-        return obj;
-      });
-    }
-    if (res.status === "Failed" || res.status === "Cancelled") return [];
-  }
-  return [];
-}
+import { CloudWatchLogsClient } from "@aws-sdk/client-cloudwatch-logs";
 
 export async function GET(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -48,7 +19,7 @@ export async function GET(req: NextRequest) {
   try {
     const [mtdResults, recentResults, lastUsedResults] = await Promise.all([
       // MTD totals per key
-      runQuery(
+      runInsightsQuery(
         cwl,
         `fields input.inputTokenCount as inTok, output.outputTokenCount as outTok, identity.arn as userArn
          | stats sum(inTok) as totalIn, sum(outTok) as totalOut, count(*) as inv by identity.arn
@@ -57,7 +28,7 @@ export async function GET(req: NextRequest) {
         now
       ),
       // Lifetime (90 days) per key
-      runQuery(
+      runInsightsQuery(
         cwl,
         `fields input.inputTokenCount as inTok, output.outputTokenCount as outTok, identity.arn as userArn
          | stats sum(inTok) as totalIn, sum(outTok) as totalOut, count(*) as inv by identity.arn
@@ -66,7 +37,7 @@ export async function GET(req: NextRequest) {
         now
       ),
       // Last used time per key
-      runQuery(
+      runInsightsQuery(
         cwl,
         `fields @timestamp, identity.arn as userArn
          | stats max(@timestamp) as lastUsed by identity.arn`,
