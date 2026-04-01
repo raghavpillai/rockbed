@@ -46,7 +46,7 @@ type KeyStats = Record<string, {
 export function KeyManager() {
   const { region } = useRegion();
   const { data: session } = useSession();
-  const isAdmin = (session?.user as any)?.role === "admin";
+  const isAdmin = session?.user?.role === "admin";
   const [keys, setKeys] = useState<BedrockKey[]>([]);
   const [keyStats, setKeyStats] = useState<KeyStats>({});
   const [newKey, setNewKey] = useState<NewBedrockKey | null>(null);

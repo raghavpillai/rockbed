@@ -21,7 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function SettingsPage() {
   const { region } = useRegion();
   const { data: session } = useSession();
-  const isAdmin = (session?.user as any)?.role === "admin";
+  const isAdmin = session?.user?.role === "admin";
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [loading, setLoading] = useState(true);
 

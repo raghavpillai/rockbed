@@ -119,7 +119,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 .filter(
                   (item) =>
                     !("adminOnly" in item && item.adminOnly) ||
-                    (session?.user as any)?.role === "admin"
+                    session?.user?.role === "admin"
                 )
                 .map((item) => {
                   const active =
