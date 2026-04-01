@@ -8,6 +8,10 @@
     "lint": "turbo lint"
   },
   "devDependencies": {
+    "@ai-sdk/amazon-bedrock": "^4.0.86",
+    "@aws-sdk/client-bedrock-runtime": "^3.1022.0",
+    "@aws-sdk/client-iam": "^3.1022.0",
+    "@mastra/core": "^1.20.0",
     "turbo": "^2",
     "typescript": "^5.7"
   },
