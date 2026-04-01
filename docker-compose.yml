@@ -1,0 +1,15 @@
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.docker
+    volumes:
+      - rockbed-data:/app/data
+    environment:
+      - DATABASE_URL=file:/app/data/rockbed.db
+    restart: unless-stopped
+
+volumes:
+  rockbed-data:

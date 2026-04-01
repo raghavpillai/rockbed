@@ -2,7 +2,8 @@ node_modules
 .next
 dist
 .turbo
-.env*
-!.env.docker.example
 *.db
 *.db-journal
+.env*
+!.env.docker.example
+.git
