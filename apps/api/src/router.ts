@@ -145,7 +145,7 @@ const createKey = os.input(CreateKeyInput).handler(async ({ input }) => {
       region: input.region,
       metadata: JSON.stringify({ expiryDays: input.expiryDays, expiresAt, createdBy: input.createdBy }),
     },
-  }).catch(() => {});
+  }).catch((e) => console.error("[audit]", e));
 
   return {
     userName,
@@ -233,7 +233,7 @@ const deleteKey = os.input(DeleteKeyInput).handler(async ({ input }) => {
       userName: input.userName,
       region: input.region,
     },
-  }).catch(() => {});
+  }).catch((e) => console.error("[audit]", e));
 
   return { success: true };
 });

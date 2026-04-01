@@ -136,11 +136,12 @@ export async function GET(req: NextRequest) {
       period: { year, month, startTime: startTime.toISOString(), endTime: endTime.toISOString() },
     });
   } catch (err: any) {
+    console.error("[analytics]", err);
     return NextResponse.json({
       daily: [],
       summary: [],
       period: { year, month, startTime: startTime.toISOString(), endTime: endTime.toISOString() },
-      error: err.message,
+      error: "Failed to load analytics data",
     });
   }
 }
