@@ -16,7 +16,18 @@ import {
 import {
   BedrockClient,
   ListFoundationModelsCommand,
+  GetModelInvocationLoggingConfigurationCommand,
+  PutModelInvocationLoggingConfigurationCommand,
 } from "@aws-sdk/client-bedrock";
+import {
+  CreateRoleCommand,
+  GetRoleCommand,
+  PutRolePolicyCommand,
+} from "@aws-sdk/client-iam";
+import {
+  CloudWatchLogsClient,
+  CreateLogGroupCommand,
+} from "@aws-sdk/client-cloudwatch-logs";
 import {
   ServiceQuotasClient,
   ListServiceQuotasCommand,
@@ -307,16 +318,30 @@ const toggleFavorite = os
 
 // -- Settings --
 
-const getSettings = os.handler(async () => {
+const getSettings = os.input(RegionInput).handler(async ({ input }) => {
   const [defaultRegion, enabledRegions] = await Promise.all([
     prisma.setting.findUnique({ where: { key: "default_region" } }),
     prisma.setting.findUnique({ where: { key: "enabled_regions" } }),
   ]);
+
+  // Check invocation logging status
+  let invocationLoggingEnabled = false;
+  try {
+    const { bedrock } = createClients(input.region);
+    const logConfig = await bedrock.send(
+      new GetModelInvocationLoggingConfigurationCommand({})
+    );
+    invocationLoggingEnabled =
+      logConfig.loggingConfig?.textDataDeliveryEnabled === true &&
+      !!logConfig.loggingConfig?.cloudWatchConfig?.logGroupName;
+  } catch {}
+
   return {
     defaultRegion: defaultRegion?.value ?? "us-east-1",
     enabledRegions: enabledRegions?.value
       ? enabledRegions.value.split(",").filter(Boolean)
       : ["us-east-1", "us-west-2"],
+    invocationLoggingEnabled,
   };
 });
 
@@ -340,6 +365,112 @@ const setEnabledRegions = os
       create: { key: "enabled_regions", value: input.regions.join(",") },
     });
     return { ok: true };
+  });
+
+const LOGGING_ROLE_NAME = "RockbedInvocationLoggingRole";
+const LOG_GROUP_NAME = "/aws/bedrock/invocation-logs";
+
+const enableInvocationLogging = os
+  .input(z.object({ region: z.string(), enable: z.boolean() }))
+  .handler(async ({ input }) => {
+    const { bedrock, iam } = createClients(input.region);
+
+    if (!input.enable) {
+      // Disable by setting textDataDeliveryEnabled to false
+      try {
+        const current = await bedrock.send(
+          new GetModelInvocationLoggingConfigurationCommand({})
+        );
+        if (current.loggingConfig?.cloudWatchConfig) {
+          await bedrock.send(
+            new PutModelInvocationLoggingConfigurationCommand({
+              loggingConfig: {
+                ...current.loggingConfig,
+                textDataDeliveryEnabled: false,
+              },
+            })
+          );
+        }
+      } catch {}
+      return { ok: true, enabled: false };
+    }
+
+    // Get account ID for role ARN
+    const { sts } = createClients(input.region);
+    const identity = await sts.send(new GetCallerIdentityCommand({}));
+    const accountId = identity.Account!;
+    const roleArn = `arn:aws:iam::${accountId}:role/${LOGGING_ROLE_NAME}`;
+
+    // Ensure IAM role exists
+    try {
+      await iam.send(new GetRoleCommand({ RoleName: LOGGING_ROLE_NAME }));
+    } catch {
+      await iam.send(
+        new CreateRoleCommand({
+          RoleName: LOGGING_ROLE_NAME,
+          AssumeRolePolicyDocument: JSON.stringify({
+            Version: "2012-10-17",
+            Statement: [
+              {
+                Effect: "Allow",
+                Principal: { Service: "bedrock.amazonaws.com" },
+                Action: "sts:AssumeRole",
+              },
+            ],
+          }),
+          Description: "Allows Bedrock to write invocation logs to CloudWatch",
+        })
+      );
+      await iam.send(
+        new PutRolePolicyCommand({
+          RoleName: LOGGING_ROLE_NAME,
+          PolicyName: "CloudWatchLogsAccess",
+          PolicyDocument: JSON.stringify({
+            Version: "2012-10-17",
+            Statement: [
+              {
+                Effect: "Allow",
+                Action: [
+                  "logs:CreateLogGroup",
+                  "logs:CreateLogStream",
+                  "logs:PutLogEvents",
+                ],
+                Resource: "arn:aws:logs:*:*:log-group:/aws/bedrock/*",
+              },
+            ],
+          }),
+        })
+      );
+      // Wait for IAM propagation
+      await new Promise((r) => setTimeout(r, 5000));
+    }
+
+    // Ensure log group exists
+    const cwLogs = new CloudWatchLogsClient({ region: input.region });
+    try {
+      await cwLogs.send(
+        new CreateLogGroupCommand({ logGroupName: LOG_GROUP_NAME })
+      );
+    } catch (e: any) {
+      if (e.name !== "ResourceAlreadyExistsException") throw e;
+    }
+
+    // Enable logging
+    await bedrock.send(
+      new PutModelInvocationLoggingConfigurationCommand({
+        loggingConfig: {
+          textDataDeliveryEnabled: true,
+          imageDataDeliveryEnabled: false,
+          embeddingDataDeliveryEnabled: false,
+          cloudWatchConfig: {
+            logGroupName: LOG_GROUP_NAME,
+            roleArn,
+          },
+        },
+      })
+    );
+
+    return { ok: true, enabled: true };
   });
 
 // -- Router --
@@ -367,6 +498,7 @@ export const router = {
     get: getSettings,
     setRegion: setDefaultRegion,
     setEnabledRegions,
+    enableInvocationLogging,
   },
 };
 

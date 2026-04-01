@@ -1,0 +1,286 @@
+"use client";
+
+import { useState, useMemo, useEffect } from "react";
+import { client } from "@/lib/orpc";
+import { useRegion } from "@/lib/region-context";
+import {
+  useAnalytics,
+  formatNumber,
+  monthName,
+  CHART_COLORS,
+  sanitizeKey,
+  type AnalyticsFilters,
+} from "./use-analytics";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from "@/components/ui/chart";
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid } from "recharts";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+
+export function UsagePage() {
+  const now = new Date();
+  const { region } = useRegion();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [groupBy, setGroupBy] = useState("model");
+  const [filterUser, setFilterUser] = useState("");
+  const [apiKeys, setApiKeys] = useState<{ name: string; userName: string }[]>([]);
+
+  useEffect(() => {
+    client.keys.list({ region }).then((keys) =>
+      setApiKeys(keys.map((k) => ({ name: k.friendlyName, userName: k.userName })))
+    ).catch(() => {});
+  }, [region]);
+
+  const filters: AnalyticsFilters = {};
+  if (filterUser) filters.user = filterUser;
+
+  const { data, loading } = useAnalytics(groupBy, year, month, filters);
+
+  function prevMonth() {
+    if (month === 1) { setMonth(12); setYear(year - 1); }
+    else setMonth(month - 1);
+  }
+  function nextMonth() {
+    if (month === 12) { setMonth(1); setYear(year + 1); }
+    else setMonth(month + 1);
+  }
+
+  // Build chart data: pivot daily data into { day, key1: val, key2: val, ... }
+  const { chartData, chartConfig, groupKeys } = useMemo(() => {
+    if (!data?.daily.length) return { chartData: [], chartConfig: {}, groupKeys: [] };
+
+    const rawKeys = [...new Set(data.daily.map((d) => d.groupKey))];
+    const keyMap = new Map(rawKeys.map((k) => [k, sanitizeKey(k)]));
+    const safeKeys = rawKeys.map((k) => keyMap.get(k)!);
+
+    const byDay = new Map<string, Record<string, number>>();
+    for (const row of data.daily) {
+      const dayKey = new Date(row.day).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      if (!byDay.has(dayKey)) byDay.set(dayKey, { day: dayKey as any });
+      const entry = byDay.get(dayKey)!;
+      const safe = keyMap.get(row.groupKey) ?? row.groupKey;
+      entry[safe] = (entry[safe] ?? 0) + row.totalIn + row.totalOut;
+    }
+
+    const config: Record<string, { label: string; color: string }> = {};
+    rawKeys.forEach((k, i) => {
+      config[keyMap.get(k)!] = { label: k, color: CHART_COLORS[i % CHART_COLORS.length] };
+    });
+
+    return {
+      chartData: Array.from(byDay.values()),
+      chartConfig: config,
+      groupKeys: safeKeys,
+    };
+  }, [data]);
+
+  // Totals
+  const totals = useMemo(() => {
+    if (!data?.summary.length) return { totalIn: 0, totalOut: 0, invocations: 0 };
+    return data.summary.reduce(
+      (acc, r) => ({
+        totalIn: acc.totalIn + r.totalIn,
+        totalOut: acc.totalOut + r.totalOut,
+        invocations: acc.invocations + r.invocations,
+      }),
+      { totalIn: 0, totalOut: 0, invocations: 0 }
+    );
+  }, [data]);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Usage</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Token usage across all API keys.
+        </p>
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Select value={groupBy} onValueChange={setGroupBy}>
+          <SelectTrigger className="w-44">
+            <span>Group by: {groupBy === "apiKey" ? "API Key" : groupBy === "user" ? "User" : "Model"}</span>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="model">Model</SelectItem>
+            <SelectItem value="apiKey">API Key</SelectItem>
+            <SelectItem value="user">User</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={filterUser || "_all"} onValueChange={(v) => setFilterUser(v === "_all" ? "" : v)}>
+          <SelectTrigger className="w-44">
+            <span>API key: {filterUser ? apiKeys.find(k => k.userName.includes(filterUser))?.name ?? filterUser : "All"}</span>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_all">All</SelectItem>
+            {apiKeys.map((k) => (
+              <SelectItem key={k.userName} value={k.userName}>
+                {k.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <div className="flex items-center gap-1 border rounded-lg px-1">
+          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={prevMonth}>
+            <ChevronLeftIcon className="size-4" />
+          </Button>
+          <span className="text-sm font-medium px-2 min-w-[120px] text-center">
+            {monthName(month)} {year}
+          </span>
+          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={nextMonth}>
+            <ChevronRightIcon className="size-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <p className="text-sm text-muted-foreground">Total tokens in</p>
+            {loading ? (
+              <Skeleton className="h-8 w-40 mt-1" />
+            ) : (
+              <p className="text-2xl font-bold mt-1">{formatNumber(totals.totalIn)}</p>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <p className="text-sm text-muted-foreground">Total tokens out</p>
+            {loading ? (
+              <Skeleton className="h-8 w-40 mt-1" />
+            ) : (
+              <p className="text-2xl font-bold mt-1">{formatNumber(totals.totalOut)}</p>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <p className="text-sm text-muted-foreground">Total invocations</p>
+            {loading ? (
+              <Skeleton className="h-8 w-40 mt-1" />
+            ) : (
+              <p className="text-2xl font-bold mt-1">{formatNumber(totals.invocations)}</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Token usage chart */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Token usage</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Daily token usage grouped by {groupBy === "apiKey" ? "API key" : groupBy}
+          </p>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <Skeleton className="h-80 w-full" />
+          ) : chartData.length === 0 ? (
+            <div className="h-80 flex items-center justify-center text-sm text-muted-foreground">
+              No usage data for this period.
+              {data?.error && <span className="ml-1 text-destructive">({data.error})</span>}
+            </div>
+          ) : (
+            <ChartContainer config={chartConfig} className="h-80 w-full">
+              <BarChart data={chartData} barCategoryGap="20%">
+                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                <XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={12} />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={12}
+                  tickFormatter={(v) => formatNumber(v)}
+                />
+                <ChartTooltip
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload?.length) return null;
+                    return (
+                      <div className="rounded-lg border bg-background p-3 shadow-md text-sm">
+                        <p className="font-medium mb-1.5">{label}</p>
+                        {payload.filter((p: any) => p.value > 0).map((p: any) => (
+                          <div key={p.dataKey} className="flex items-center gap-2 py-0.5">
+                            <span className="size-2.5 rounded-full shrink-0" style={{ background: p.fill }} />
+                            <span className="text-muted-foreground">{chartConfig[p.dataKey]?.label ?? p.dataKey}:</span>
+                            <span className="font-mono font-medium ml-auto">{formatNumber(p.value)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }}
+                />
+                <ChartLegend content={<ChartLegendContent />} />
+                {groupKeys.map((key, i) => (
+                  <Bar
+                    key={key}
+                    dataKey={key}
+                    stackId="tokens"
+                    fill={CHART_COLORS[i % CHART_COLORS.length]}
+                    radius={[0, 0, 0, 0]}
+                  />
+                ))}
+              </BarChart>
+            </ChartContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Breakdown table */}
+      {data && data.summary.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">
+              Breakdown by {groupBy === "apiKey" ? "API key" : groupBy}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-3 font-medium text-muted-foreground">
+                      {groupBy === "apiKey" ? "API Key" : groupBy === "user" ? "User" : "Model"}
+                    </th>
+                    <th className="text-right p-3 font-medium text-muted-foreground">Tokens in</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground">Tokens out</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground">Invocations</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.summary.map((row, i) => (
+                    <tr key={`${row.groupKey}-${i}`} className="border-b last:border-0">
+                      <td className="p-3 font-medium">{row.groupKey}</td>
+                      <td className="p-3 text-right font-mono">{formatNumber(row.totalIn)}</td>
+                      <td className="p-3 text-right font-mono">{formatNumber(row.totalOut)}</td>
+                      <td className="p-3 text-right font-mono">{formatNumber(row.invocations)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
