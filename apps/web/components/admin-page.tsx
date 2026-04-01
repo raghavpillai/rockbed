@@ -45,7 +45,7 @@ type User = {
 
 export function AdminPage() {
   const { data: session, isPending } = useSession();
-  const isAdmin = session?.user?.role === "admin";
+  const isAdmin = (session?.user as any)?.role === "admin";
 
   if (isPending) {
     return (
