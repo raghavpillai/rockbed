@@ -221,8 +221,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     onClick={() =>
                       signOut({
                         fetchOptions: {
-                          onSuccess: () =>
-                            (window.location.href = "/login"),
+                          onSuccess: () => {
+                            window.location.href = "/login";
+                          },
                         },
                       })
                     }
