@@ -1,60 +1,16 @@
 import { auth } from "@/lib/auth";
+import { runInsightsQuery } from "@/lib/cloudwatch";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import {
-  CloudWatchLogsClient,
-  StartQueryCommand,
-  GetQueryResultsCommand,
-} from "@aws-sdk/client-cloudwatch-logs";
+import { CloudWatchLogsClient } from "@aws-sdk/client-cloudwatch-logs";
 import {
   IAMClient,
   ListUsersCommand,
   ListUserTagsCommand,
 } from "@aws-sdk/client-iam";
 
-const LOG_GROUP = "/aws/bedrock/invocation-logs";
-
 async function getSession() {
   return auth.api.getSession({ headers: await headers() });
-}
-
-async function runInsightsQuery(
-  region: string,
-  query: string,
-  startTime: Date,
-  endTime: Date
-) {
-  const cwl = new CloudWatchLogsClient({ region });
-
-  const { queryId } = await cwl.send(
-    new StartQueryCommand({
-      logGroupName: LOG_GROUP,
-      startTime: Math.floor(startTime.getTime() / 1000),
-      endTime: Math.floor(endTime.getTime() / 1000),
-      queryString: query,
-    })
-  );
-
-  // Poll for results
-  for (let i = 0; i < 30; i++) {
-    await new Promise((r) => setTimeout(r, 1000));
-    const res = await cwl.send(
-      new GetQueryResultsCommand({ queryId: queryId! })
-    );
-    if (res.status === "Complete") {
-      return (res.results ?? []).map((row) => {
-        const obj: Record<string, string> = {};
-        for (const field of row) {
-          if (field.field && field.value) obj[field.field] = field.value;
-        }
-        return obj;
-      });
-    }
-    if (res.status === "Failed" || res.status === "Cancelled") {
-      throw new Error(`Query ${res.status}`);
-    }
-  }
-  throw new Error("Query timed out");
 }
 
 export async function GET(req: NextRequest) {
@@ -69,9 +25,11 @@ export async function GET(req: NextRequest) {
   const year = parseInt(searchParams.get("year") ?? new Date().getFullYear().toString());
   const month = parseInt(searchParams.get("month") ?? (new Date().getMonth() + 1).toString());
 
-  const filterApiKey = searchParams.get("apiKey") ?? "";
-  const filterModel = searchParams.get("model") ?? "";
-  const filterUser = searchParams.get("user") ?? "";
+  // Sanitize filter inputs — only allow alphanumeric, hyphens, underscores, dots, @
+  const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_\-\.@]/g, "");
+  const filterApiKey = sanitize(searchParams.get("apiKey") ?? "");
+  const filterModel = sanitize(searchParams.get("model") ?? "");
+  const filterUser = sanitize(searchParams.get("user") ?? "");
 
   const startTime = new Date(year, month - 1, 1);
   const endTime = new Date(year, month, 0, 23, 59, 59);
@@ -89,6 +47,7 @@ export async function GET(req: NextRequest) {
   if (filterModel) filters.push(`modelId like /${filterModel}/`);
   if (filterUser) filters.push(`identity.arn like /${filterUser}/`);
   const filterClause = filters.length > 0 ? `| filter ${filters.join(" and ")}\n` : "";
+  const cwl = new CloudWatchLogsClient({ region });
 
   try {
     const dailyQuery = `
@@ -106,8 +65,8 @@ export async function GET(req: NextRequest) {
     `;
 
     const [daily, summary] = await Promise.all([
-      runInsightsQuery(region, dailyQuery, startTime, endTime).catch(() => []),
-      runInsightsQuery(region, summaryQuery, startTime, endTime).catch(() => []),
+      runInsightsQuery(cwl, dailyQuery, startTime, endTime).catch(() => []),
+      runInsightsQuery(cwl, summaryQuery, startTime, endTime).catch(() => []),
     ]);
 
     // For user groupBy, resolve IAM usernames to createdBy emails
