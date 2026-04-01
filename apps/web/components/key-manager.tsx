@@ -5,6 +5,7 @@ import { client } from "@/lib/orpc";
 import { useRegion } from "@/lib/region-context";
 import { useSession } from "@/lib/auth-client";
 import { EXPIRY_PRESETS } from "@rockbed/shared";
+import { CopyIcon, CheckIcon } from "lucide-react";
 import type { BedrockKey, NewBedrockKey } from "@rockbed/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,11 +37,18 @@ import {
 } from "@/components/ui/dialog";
 import { TableRowsSkeleton } from "@/components/skeletons";
 
+type KeyStats = Record<string, {
+  mtdIn: number; mtdOut: number; mtdInv: number;
+  recentIn: number; recentOut: number; recentInv: number;
+  lastUsed: string | null;
+}>;
+
 export function KeyManager() {
   const { region } = useRegion();
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "admin";
   const [keys, setKeys] = useState<BedrockKey[]>([]);
+  const [keyStats, setKeyStats] = useState<KeyStats>({});
   const [newKey, setNewKey] = useState<NewBedrockKey | null>(null);
   const [refreshing, setRefreshing] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +77,14 @@ export function KeyManager() {
     } finally {
       setRefreshing(false);
     }
+  }, [region]);
+
+  // Fetch per-key usage stats
+  useEffect(() => {
+    fetch(`/api/analytics/keys?region=${region}`)
+      .then((r) => r.json())
+      .then(setKeyStats)
+      .catch(() => {});
   }, [region]);
 
   useEffect(() => {
@@ -145,9 +161,9 @@ export function KeyManager() {
       )}
 
       {newKey && (
-        <Card className="border-green-200 bg-green-50">
+        <Card className="border-green-200 bg-green-50/50">
           <CardContent className="py-4 space-y-3">
-            <p className="text-sm font-medium text-green-800">
+            <p className="text-sm font-medium text-green-700">
               Key created successfully. Copy the API key now &mdash; it
               won&apos;t be shown again.
             </p>
@@ -156,21 +172,14 @@ export function KeyManager() {
                 <span className="text-muted-foreground">API key name</span>
                 <code className="text-xs">{newKey.apiKeyId}</code>
               </div>
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-muted-foreground shrink-0">API key</span>
-                <div className="flex items-center gap-2 min-w-0">
-                  <code className="text-xs font-mono truncate">
-                    {newKey.apiKey}
-                  </code>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-6 px-2 text-xs shrink-0"
-                    onClick={() => navigator.clipboard.writeText(newKey.apiKey)}
-                  >
-                    Copy
-                  </Button>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">API key</span>
+                  <CopyIconButton text={newKey.apiKey} />
                 </div>
+                <code className="text-xs font-mono block break-all bg-muted/50 rounded p-2">
+                  {newKey.apiKey}
+                </code>
               </div>
               {newKey.expiresAt && (
                 <div className="flex items-center justify-between">
@@ -196,7 +205,7 @@ export function KeyManager() {
                 </span>
               )}
             </CardTitle>
-            {isAdmin && <Button onClick={openCreateDialog}>Create key</Button>}
+            <Button onClick={openCreateDialog}>Create key</Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -205,60 +214,81 @@ export function KeyManager() {
           ) : keys.length === 0 ? (
             <div className="py-12 text-center space-y-3">
               <p className="text-sm text-muted-foreground">No API keys yet.</p>
-              {isAdmin && (
-                <Button variant="outline" onClick={openCreateDialog}>
-                  Create your first key
-                </Button>
-              )}
+              <Button variant="outline" onClick={openCreateDialog}>
+                Create your first key
+              </Button>
             </div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>API key ID</TableHead>
-                    <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
-                    <TableHead>Expires</TableHead>
                     <TableHead>Created by</TableHead>
-                    {isAdmin && <TableHead className="w-20" />}
+                    <TableHead className="text-right">This month</TableHead>
+                    <TableHead className="text-right">Lifetime</TableHead>
+                    <TableHead>Last used</TableHead>
+                    <TableHead className="w-16" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {keys.map((key) => (
                     <TableRow key={key.credentialId}>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium whitespace-nowrap">
                         {key.friendlyName}
                       </TableCell>
                       <TableCell>
-                        <code className="text-xs text-muted-foreground">
-                          {key.apiKeyId}
+                        <code className="text-xs text-muted-foreground" title={key.apiKeyId}>
+                          {key.apiKeyId.length > 30
+                            ? `${key.apiKeyId.slice(0, 14)}...${key.apiKeyId.slice(-12)}`
+                            : key.apiKeyId}
                         </code>
                       </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            key.status === "Active" ? "default" : "secondary"
-                          }
-                          className="text-[10px]"
-                        >
-                          {key.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                         {new Date(key.createdAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {key.expiresAt
-                          ? new Date(key.expiresAt).toLocaleDateString()
-                          : "Never"}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {key.createdBy ?? "—"}
                       </TableCell>
-                      {isAdmin && (
-                        <TableCell>
+                      <TableCell className="text-right text-sm">
+                        {(() => {
+                          const s = keyStats[key.friendlyName];
+                          if (!s || !s.mtdInv) return <span className="text-muted-foreground text-xs">—</span>;
+                          const cost = (s.mtdIn / 1e6) * 3 + (s.mtdOut / 1e6) * 15;
+                          return <span className="text-xs font-mono">${cost.toFixed(2)}</span>;
+                        })()}
+                      </TableCell>
+                      <TableCell className="text-right text-sm">
+                        {(() => {
+                          const s = keyStats[key.friendlyName];
+                          if (!s || !s.recentInv) return <span className="text-muted-foreground text-xs">—</span>;
+                          // recentInv now holds lifetime data from the 90-day query
+                          const cost = (s.recentIn / 1e6) * 3 + (s.recentOut / 1e6) * 15;
+                          return <span className="text-xs font-mono">${cost.toFixed(2)}</span>;
+                        })()}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        {(() => {
+                          const s = keyStats[key.friendlyName];
+                          if (!s?.lastUsed) return "Never";
+                          const d = new Date(s.lastUsed + "Z");
+                          const now = new Date();
+                          const diffMs = now.getTime() - d.getTime();
+                          const mins = Math.floor(diffMs / 60000);
+                          if (mins < 1) return "Just now";
+                          if (mins < 60) return `${mins}m ago`;
+                          const hours = Math.floor(mins / 60);
+                          if (hours < 24) return `${hours}h ago`;
+                          const days = Math.floor(hours / 24);
+                          if (days === 1) return "Yesterday";
+                          if (days < 7) return `${days}d ago`;
+                          return d.toLocaleDateString();
+                        })()}
+                      </TableCell>
+                      <TableCell>
+                        {(isAdmin || key.createdBy === session?.user?.email) && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -276,8 +306,8 @@ export function KeyManager() {
                               ? "Deleting..."
                               : "Delete"}
                           </Button>
-                        </TableCell>
-                      )}
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -395,5 +425,24 @@ export function KeyManager() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function CopyIconButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-6 w-6 p-0 shrink-0"
+      onClick={(e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+    >
+      {copied ? <CheckIcon className="size-3.5 text-green-600" /> : <CopyIcon className="size-3.5 text-muted-foreground" />}
+    </Button>
   );
 }

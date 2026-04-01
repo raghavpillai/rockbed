@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { client } from "@/lib/orpc";
 import { useRegion } from "@/lib/region-context";
 import type { BedrockQuota } from "@rockbed/shared";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -279,6 +280,7 @@ export function QuotasTable() {
     setPage(0);
   }, [search, providerFilter, inferenceFilter]);
 
+
   return (
     <div className="space-y-6">
       <div>
@@ -289,6 +291,56 @@ export function QuotasTable() {
         </p>
       </div>
 
+      <div className="flex gap-8">
+        {/* Sidebar filters */}
+        <aside className="w-52 shrink-0 space-y-6 sticky top-6 self-start">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold">Filters</span>
+            {(providerFilter !== "all" || inferenceFilter !== "all") && (
+              <button
+                onClick={() => { setProviderFilter("all"); setInferenceFilter("all"); }}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2">Providers</p>
+            <div className="space-y-1.5">
+              {providers.map((p) => (
+                <label key={p} className="flex items-center gap-2 text-sm cursor-pointer group/item">
+                  <Checkbox
+                    checked={providerFilter === p}
+                    onCheckedChange={(checked) => setProviderFilter(checked ? p : "all")}
+                  />
+                  <span className="text-muted-foreground group-hover/item:text-foreground transition-colors text-xs">
+                    {p}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2">Inference type</p>
+            <div className="space-y-1.5">
+              {inferenceTypes.map((t) => (
+                <label key={t} className="flex items-center gap-2 text-sm cursor-pointer group/item">
+                  <Checkbox
+                    checked={inferenceFilter === t}
+                    onCheckedChange={(checked) => setInferenceFilter(checked ? t : "all")}
+                  />
+                  <span className="text-muted-foreground group-hover/item:text-foreground transition-colors text-xs">
+                    {t}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </aside>
+
+        {/* Main content */}
+        <div className="flex-1 min-w-0">
       <Card>
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
@@ -358,41 +410,11 @@ export function QuotasTable() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Filters */}
-          <div className="flex items-center gap-3">
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Find quotas..."
-              className="max-w-xs"
-            />
-            <Select value={providerFilter} onValueChange={setProviderFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Provider" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Any provider</SelectItem>
-                {providers.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {p}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={inferenceFilter} onValueChange={setInferenceFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Inference type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Any inference type</SelectItem>
-                {inferenceTypes.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Find quotas..."
+          />
 
           {/* Table */}
           {loading ? (
@@ -410,48 +432,46 @@ export function QuotasTable() {
               No quotas match your filters.
             </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
+            <div className="rounded-md border overflow-x-auto">
+              <Table className="table-fixed w-full">
                 <TableHeader>
                   <TableRow>
                     <TableHead
-                      className="cursor-pointer select-none hover:text-foreground"
+                      className="cursor-pointer select-none hover:text-foreground w-[40%]"
                       onClick={() => toggleSort("quotaName")}
                     >
-                      Model name <SortIcon field="quotaName" />
+                      Model <SortIcon field="quotaName" />
                     </TableHead>
-                    <TableHead>Provider</TableHead>
-                    <TableHead>Inference type</TableHead>
+                    <TableHead className="w-[20%]">Type</TableHead>
                     <TableHead
-                      className="text-right cursor-pointer select-none hover:text-foreground"
+                      className="text-right cursor-pointer select-none hover:text-foreground w-[12%]"
                       onClick={() => toggleSort("tpm")}
                     >
                       TPM <SortIcon field="tpm" />
                     </TableHead>
                     <TableHead
-                      className="text-right cursor-pointer select-none hover:text-foreground"
+                      className="text-right cursor-pointer select-none hover:text-foreground w-[12%]"
                       onClick={() => toggleSort("rpm")}
                     >
                       RPM <SortIcon field="rpm" />
                     </TableHead>
-                    <TableHead className="text-right w-48">
-                      Request quota increase
+                    <TableHead className="text-right w-[16%]">
+                      Increase
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {paged.map((row, i) => (
                     <TableRow key={i}>
-                      <TableCell className="font-medium">
-                        {row.modelName}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {row.provider}
+                      <TableCell className="font-medium text-sm">
+                        <span className="block truncate" title={row.modelName}>
+                          {row.modelName}
+                        </span>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-xs font-normal">
+                        <span className="text-xs text-muted-foreground">
                           {row.inferenceType}
-                        </Badge>
+                        </span>
                       </TableCell>
                       <TableCell className="text-right font-mono text-sm">
                         {row.tpm ? formatValue(row.tpm.value) : "—"}
@@ -510,6 +530,8 @@ export function QuotasTable() {
           )}
         </CardContent>
       </Card>
+        </div>
+      </div>
     </div>
   );
 }

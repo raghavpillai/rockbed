@@ -26,7 +26,16 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { FiltersSkeleton, TableRowsSkeleton } from "@/components/skeletons";
-import { StarIcon } from "lucide-react";
+import {
+  StarIcon,
+  TypeIcon,
+  ImageIcon,
+  VideoIcon,
+  MicIcon,
+  AudioLinesIcon,
+  CopyIcon,
+  CheckIcon,
+} from "lucide-react";
 
 type SortField = "modelName" | "provider";
 type SortDir = "asc" | "desc";
@@ -210,7 +219,7 @@ export function ModelCatalog() {
         {loading ? (
           <FiltersSkeleton />
         ) : (
-          <aside className="w-52 shrink-0 space-y-6">
+          <aside className="w-52 shrink-0 space-y-6 sticky top-6 self-start">
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold">Filters</span>
               {activeFilterCount > 0 && (
@@ -299,7 +308,7 @@ export function ModelCatalog() {
                   No models match your filters.
                 </div>
               ) : (
-                <div className="rounded-md border">
+                <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -315,9 +324,9 @@ export function ModelCatalog() {
                         >
                           Provider <SortIcon field="provider" />
                         </TableHead>
-                        <TableHead>Modalities</TableHead>
-                        <TableHead>Inference</TableHead>
-                        <TableHead className="w-24">Status</TableHead>
+                        <TableHead>Input</TableHead>
+                        <TableHead>Output</TableHead>
+                        <TableHead className="w-20">Status</TableHead>
                         <TableHead className="w-10" />
                       </TableRow>
                     </TableHeader>
@@ -329,50 +338,24 @@ export function ModelCatalog() {
                           onClick={() => setSelectedModel(model)}
                         >
                           <TableCell>
-                            <div>
-                              <p className="font-medium text-sm">
-                                {model.modelName}
-                              </p>
-                              <p className="text-[11px] text-muted-foreground/50 font-mono mt-0.5">
-                                {model.modelId}
-                              </p>
-                            </div>
+                            <p className="font-medium text-sm whitespace-nowrap">
+                              {model.modelName}
+                            </p>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
+                          <TableCell className="text-muted-foreground text-sm">
                             {model.provider}
                           </TableCell>
                           <TableCell>
-                            <div className="flex flex-wrap gap-1">
+                            <div className="flex gap-1.5">
                               {model.inputModalities.map((mod) => (
-                                <Badge
-                                  key={`in-${mod}`}
-                                  variant="outline"
-                                  className="text-[10px] font-normal"
-                                >
-                                  In: {mod}
-                                </Badge>
-                              ))}
-                              {model.outputModalities.map((mod) => (
-                                <Badge
-                                  key={`out-${mod}`}
-                                  variant="outline"
-                                  className="text-[10px] font-normal"
-                                >
-                                  Out: {mod}
-                                </Badge>
+                                <ModalityIcon key={mod} modality={mod} />
                               ))}
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {model.inferenceTypes.map((t) => (
-                                <Badge
-                                  key={t}
-                                  variant="secondary"
-                                  className="text-[10px]"
-                                >
-                                  {t.replace(/_/g, " ")}
-                                </Badge>
+                            <div className="flex gap-1.5">
+                              {model.outputModalities.map((mod) => (
+                                <ModalityIcon key={mod} modality={mod} />
                               ))}
                             </div>
                           </TableCell>
@@ -526,14 +509,32 @@ function FilterGroup({
   );
 }
 
+function ModalityIcon({ modality }: { modality: string }) {
+  const m = modality.toUpperCase();
+  const iconClass = "size-4 text-muted-foreground";
+  let icon = <TypeIcon className={iconClass} />;
+  let label = modality;
+  if (m === "TEXT") { icon = <TypeIcon className={iconClass} />; label = "Text"; }
+  else if (m === "IMAGE") { icon = <ImageIcon className={iconClass} />; label = "Image"; }
+  else if (m === "VIDEO") { icon = <VideoIcon className={iconClass} />; label = "Video"; }
+  else if (m === "AUDIO") { icon = <AudioLinesIcon className={iconClass} />; label = "Audio"; }
+  else if (m === "SPEECH") { icon = <MicIcon className={iconClass} />; label = "Speech"; }
+  else if (m === "EMBEDDING") { icon = <TypeIcon className={iconClass} />; label = "Embed"; }
+  return (
+    <span className="flex items-center gap-1" title={label}>
+      {icon}
+    </span>
+  );
+}
+
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
 
   return (
     <Button
-      variant="outline"
+      variant="ghost"
       size="sm"
-      className="h-6 px-2 text-xs shrink-0"
+      className="h-6 w-6 p-0 shrink-0"
       onClick={(e) => {
         e.stopPropagation();
         navigator.clipboard.writeText(text);
@@ -541,7 +542,7 @@ function CopyButton({ text }: { text: string }) {
         setTimeout(() => setCopied(false), 1500);
       }}
     >
-      {copied ? "Copied!" : "Copy"}
+      {copied ? <CheckIcon className="size-3.5 text-green-600" /> : <CopyIcon className="size-3.5 text-muted-foreground" />}
     </Button>
   );
 }
@@ -625,11 +626,12 @@ function ModelDetailDialog({
                       Input modalities
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1.5">
+                      <div className="flex gap-2">
                         {model.inputModalities.map((mod) => (
-                          <Badge key={mod} variant="outline">
+                          <span key={mod} className="flex items-center gap-1.5 text-sm">
+                            <ModalityIcon modality={mod} />
                             {mod}
-                          </Badge>
+                          </span>
                         ))}
                       </div>
                     </TableCell>
@@ -639,11 +641,12 @@ function ModelDetailDialog({
                       Output modalities
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1.5">
+                      <div className="flex gap-2">
                         {model.outputModalities.map((mod) => (
-                          <Badge key={mod} variant="outline">
+                          <span key={mod} className="flex items-center gap-1.5 text-sm">
+                            <ModalityIcon modality={mod} />
                             {mod}
-                          </Badge>
+                          </span>
                         ))}
                       </div>
                     </TableCell>
