@@ -11,5 +11,8 @@
     "turbo": "^2",
     "typescript": "^5.7"
   },
-  "packageManager": "bun@1.2.9"
+  "packageManager": "bun@1.2.9",
+  "dependencies": {
+    "@aws-sdk/client-cloudwatch-logs": "^3.1020.0"
+  }
 }
