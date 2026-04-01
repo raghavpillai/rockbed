@@ -97,7 +97,3 @@ DATABASE_URL="file:$(pwd)/prisma/dev.db" bunx prisma db push
 cd ../..
 bun run dev
 ```
-
-## License
-
-MIT
