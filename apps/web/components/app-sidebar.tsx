@@ -173,7 +173,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarTrigger className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-md" />
       </div>
 
-      <SidebarFooter className="group-data-[collapsible=icon]:p-1.5">
+      <SidebarFooter className="group-data-[collapsible=icon]:p-0">
         <SidebarMenu>
           <SidebarMenuItem>
             {isPending ? (
@@ -182,8 +182,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </div>
             ) : session ? (
               <DropdownMenu>
-                <DropdownMenuTrigger className="w-full rounded-lg flex items-center gap-2 p-2 group-data-[collapsible=icon]:p-0.5 group-data-[collapsible=icon]:justify-center text-left hover:bg-sidebar-accent transition-all duration-200 ease-linear">
-                    <div className="flex items-center gap-2 w-full min-w-0 group-data-[collapsible=icon]:justify-center">
+                <DropdownMenuTrigger className="w-full rounded-lg flex items-center justify-center p-2 group-data-[collapsible=icon]:p-0 text-left hover:bg-sidebar-accent transition-all duration-200 ease-linear">
+                    <div className="flex items-center gap-2 group-data-[collapsible=icon]:gap-0 w-full min-w-0 group-data-[collapsible=icon]:w-auto group-data-[collapsible=icon]:justify-center">
                       {session.user.image ? (
                         <img
                           src={session.user.image}
