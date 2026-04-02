@@ -166,15 +166,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Collapse button — visible when collapsed to icon mode */}
-        <SidebarGroup className="hidden group-data-[collapsible=icon]:block">
-          <SidebarGroupContent>
-            <div className="flex justify-center py-1">
-              <SidebarTrigger className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-md" />
-            </div>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
+
+      {/* Collapse button — visible when collapsed to icon mode */}
+      <div className="hidden group-data-[collapsible=icon]:flex justify-center py-2">
+        <SidebarTrigger className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-md" />
+      </div>
 
       <SidebarFooter>
         <SidebarMenu>
@@ -191,7 +188,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         <img
                           src={session.user.image}
                           alt=""
-                          className="size-8 rounded-lg shrink-0"
+                          className="size-8 rounded-lg shrink-0 object-cover"
                         />
                       ) : (
                         <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-accent text-sidebar-accent-foreground text-xs font-bold shrink-0">
@@ -200,7 +197,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           ).toUpperCase()}
                         </div>
                       )}
-                      <div className="grid flex-1 text-left text-sm leading-tight">
+                      <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                         <span className="truncate font-medium">
                           {session.user.name ?? session.user.email}
                         </span>
@@ -208,7 +205,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           {session.user.email}
                         </span>
                       </div>
-                      <ChevronsUpDownIcon className="ml-auto size-4" />
+                      <ChevronsUpDownIcon className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
                     </div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
