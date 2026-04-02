@@ -163,7 +163,7 @@ export function KeyManager() {
       )}
 
       {newKey && (
-        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="flex items-center gap-2">
             <div className="size-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
               <CheckIcon className="size-3 text-emerald-500" />
