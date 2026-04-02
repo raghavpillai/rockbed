@@ -6,6 +6,7 @@ import { useRegion } from "@/lib/region-context";
 import { useSession } from "@/lib/auth-client";
 import { EXPIRY_PRESETS, calculateCost } from "@rockbed/shared";
 import { CopyButton } from "@/components/shared/copy-button";
+import { CheckIcon } from "lucide-react";
 import type { BedrockKey, NewBedrockKey } from "@rockbed/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -154,7 +155,7 @@ export function KeyManager() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {error && (
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
@@ -162,37 +163,39 @@ export function KeyManager() {
       )}
 
       {newKey && (
-        <Card className="border-green-200 bg-green-50/50">
-          <CardContent className="py-4 space-y-3">
-            <p className="text-sm font-medium text-green-700">
-              Key created successfully. Copy the API key now &mdash; it
-              won&apos;t be shown again.
-            </p>
-            <div className="rounded-lg bg-background border p-3 space-y-2 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">API key name</span>
-                <code className="text-xs">{newKey.apiKeyId}</code>
-              </div>
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">API key</span>
-                  <CopyButton text={newKey.apiKey} />
-                </div>
-                <code className="text-xs font-mono block break-all bg-muted/50 rounded p-2">
-                  {newKey.apiKey}
-                </code>
-              </div>
-              {newKey.expiresAt && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Expires</span>
-                  <span className="text-xs">
-                    {new Date(newKey.expiresAt).toLocaleDateString()}
-                  </span>
-                </div>
-              )}
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="size-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
+              <CheckIcon className="size-3 text-emerald-500" />
             </div>
-          </CardContent>
-        </Card>
+            <p className="text-sm font-medium text-foreground">
+              Key created &mdash; copy it now, it won&apos;t be shown again.
+            </p>
+          </div>
+          <div className="rounded-md bg-background/80 border border-border/60 divide-y divide-border/60 text-sm">
+            <div className="flex items-center justify-between px-3 py-2">
+              <span className="text-muted-foreground text-xs">Name</span>
+              <code className="text-xs font-medium">{newKey.apiKeyId}</code>
+            </div>
+            <div className="px-3 py-2 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground text-xs">API key</span>
+                <CopyButton text={newKey.apiKey} label="API key" />
+              </div>
+              <code className="text-xs font-mono block break-all bg-muted rounded px-2 py-1.5 text-foreground select-all">
+                {newKey.apiKey}
+              </code>
+            </div>
+            {newKey.expiresAt && (
+              <div className="flex items-center justify-between px-3 py-2">
+                <span className="text-muted-foreground text-xs">Expires</span>
+                <span className="text-xs font-medium">
+                  {new Date(newKey.expiresAt).toLocaleDateString()}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       <Card>
@@ -213,7 +216,7 @@ export function KeyManager() {
           {refreshing && keys.length === 0 ? (
             <TableRowsSkeleton cols={6} rows={3} />
           ) : keys.length === 0 ? (
-            <div className="py-12 text-center space-y-3">
+            <div className="py-8 text-center space-y-3">
               <p className="text-sm text-muted-foreground">No API keys yet.</p>
               <Button variant="outline" onClick={openCreateDialog}>
                 Create your first key

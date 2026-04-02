@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { RegionProvider } from "@/lib/region-context";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "Rockbed | Bedrock Provisioner",
@@ -19,6 +20,7 @@ export default function RootLayout({
         <RegionProvider>
           <TooltipProvider>
             {children}
+            <Toaster richColors position="bottom-right" />
           </TooltipProvider>
         </RegionProvider>
       </body>
