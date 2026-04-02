@@ -250,12 +250,10 @@ export function KeyManager() {
                       </TableCell>
                       <TableCell>
                         <Tooltip>
-                          <TooltipTrigger asChild>
-                            <code className="text-xs text-muted-foreground cursor-default">
-                              {key.apiKeyId.length > 30
-                                ? `${key.apiKeyId.slice(0, 14)}...${key.apiKeyId.slice(-12)}`
-                                : key.apiKeyId}
-                            </code>
+                          <TooltipTrigger className="text-xs text-muted-foreground cursor-default font-mono">
+                            {key.apiKeyId.length > 30
+                              ? `${key.apiKeyId.slice(0, 14)}...${key.apiKeyId.slice(-12)}`
+                              : key.apiKeyId}
                           </TooltipTrigger>
                           <TooltipContent>
                             <code className="text-xs">{key.apiKeyId}</code>
