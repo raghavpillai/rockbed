@@ -144,8 +144,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Region — hidden when collapsed */}
-        <SidebarGroup className="mt-auto group-data-[collapsible=icon]:hidden">
+        {/* Region — animates out when collapsed */}
+        <SidebarGroup className="mt-auto overflow-hidden transition-all duration-200 ease-linear max-h-24 opacity-100 group-data-[collapsible=icon]:max-h-0 group-data-[collapsible=icon]:opacity-0">
           <SidebarGroupLabel>Region</SidebarGroupLabel>
           <SidebarGroupContent>
             <div className="px-2 pb-1 flex items-end gap-1.5">
@@ -168,8 +168,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
       </SidebarContent>
 
-      {/* Collapse button — visible when collapsed to icon mode */}
-      <div className="hidden group-data-[collapsible=icon]:flex justify-center py-2">
+      {/* Collapse button — fades in when collapsed */}
+      <div className="flex justify-center py-2 overflow-hidden transition-all duration-200 ease-linear max-h-0 opacity-0 group-data-[collapsible=icon]:max-h-12 group-data-[collapsible=icon]:opacity-100">
         <SidebarTrigger className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-md" />
       </div>
 
@@ -182,22 +182,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </div>
             ) : session ? (
               <DropdownMenu>
-                <DropdownMenuTrigger className="w-full rounded-lg flex items-center gap-2 p-2 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center text-left hover:bg-sidebar-accent transition-colors overflow-hidden">
+                <DropdownMenuTrigger className="w-full rounded-lg flex items-center gap-2 p-2 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center text-left hover:bg-sidebar-accent transition-all duration-200 ease-linear overflow-hidden">
                     <div className="flex items-center gap-2 w-full min-w-0 group-data-[collapsible=icon]:justify-center">
                       {session.user.image ? (
                         <img
                           src={session.user.image}
                           alt=""
-                          className="size-8 group-data-[collapsible=icon]:size-7 rounded-lg group-data-[collapsible=icon]:rounded-full shrink-0 object-cover transition-all"
+                          className="size-8 group-data-[collapsible=icon]:size-7 rounded-lg group-data-[collapsible=icon]:rounded-full shrink-0 object-cover transition-all duration-200 ease-linear"
                         />
                       ) : (
-                        <div className="flex aspect-square size-8 group-data-[collapsible=icon]:size-7 items-center justify-center rounded-lg group-data-[collapsible=icon]:rounded-full bg-sidebar-accent text-sidebar-accent-foreground text-xs font-bold shrink-0 transition-all">
+                        <div className="flex aspect-square size-8 group-data-[collapsible=icon]:size-7 items-center justify-center rounded-lg group-data-[collapsible=icon]:rounded-full bg-sidebar-accent text-sidebar-accent-foreground text-xs font-bold shrink-0 transition-all duration-200 ease-linear">
                           {(
                             session.user.name?.[0] ?? session.user.email[0]
                           ).toUpperCase()}
                         </div>
                       )}
-                      <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
+                      <div className="grid flex-1 text-left text-sm leading-tight overflow-hidden transition-all duration-200 ease-linear w-auto opacity-100 group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:opacity-0">
                         <span className="truncate font-medium">
                           {session.user.name ?? session.user.email}
                         </span>
@@ -205,7 +205,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           {session.user.email}
                         </span>
                       </div>
-                      <ChevronsUpDownIcon className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
+                      <ChevronsUpDownIcon className="ml-auto size-4 transition-all duration-200 ease-linear opacity-100 group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:opacity-0" />
                     </div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
