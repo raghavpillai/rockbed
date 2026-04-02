@@ -37,6 +37,11 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { TableRowsSkeleton } from "@/components/skeletons";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type KeyStats = Record<string, {
   mtdIn: number; mtdOut: number; mtdInv: number;
@@ -244,11 +249,18 @@ export function KeyManager() {
                         {key.friendlyName}
                       </TableCell>
                       <TableCell>
-                        <code className="text-xs text-muted-foreground" title={key.apiKeyId}>
-                          {key.apiKeyId.length > 30
-                            ? `${key.apiKeyId.slice(0, 14)}...${key.apiKeyId.slice(-12)}`
-                            : key.apiKeyId}
-                        </code>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <code className="text-xs text-muted-foreground cursor-default">
+                              {key.apiKeyId.length > 30
+                                ? `${key.apiKeyId.slice(0, 14)}...${key.apiKeyId.slice(-12)}`
+                                : key.apiKeyId}
+                            </code>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <code className="text-xs">{key.apiKeyId}</code>
+                          </TooltipContent>
+                        </Tooltip>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                         {new Date(key.createdAt).toLocaleDateString()}
