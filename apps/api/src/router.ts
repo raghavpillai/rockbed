@@ -133,7 +133,7 @@ const createKey = os.input(CreateKeyInput).handler(async ({ input }) => {
         { Key: "rockbed:expiryDays", Value: String(input.expiryDays) },
         { Key: "rockbed:expiresAt", Value: expiresAt ?? "never" },
         { Key: "rockbed:createdBy", Value: input.createdBy ?? "unknown" },
-        { Key: "rockbed:dailySpendLimit", Value: "none" },
+        { Key: "rockbed:dailySpendLimit", Value: "100" },
       ],
     })
   );
